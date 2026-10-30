@@ -127,17 +127,6 @@ public class PedidoService {
         return salvo;
     }
 
-    public List<Pedido> retornarPedidosPendentes(String cliente, String codigoPedido, String status, String idIntegracao, LocalDate data) {
-        log.info(" Buscando pedidos - Cliente: {}, Código: {}, Status: {}, IdIntegração: {}, Data {}",
-                cliente, codigoPedido, status, idIntegracao, data);
-
-        return repository.buscarPendentes(cliente, codigoPedido, parseStatus(status), idIntegracao, data);
-    }
-
-    /**
-     * Busca por uma lista de status (ex.: ?status=1,2,3), opcionalmente combinada com os demais
-     * filtros. Lista omitida ou vazia = sem filtro de status.
-     */
     public List<Pedido> retornarPedidos(List<Integer> status, String cliente, String codigoPedido,
                                         String idIntegracao, LocalDate data) {
         List<Integer> statusFiltro = status == null
@@ -158,18 +147,6 @@ public class PedidoService {
                 normalizar(codigoPedido),
                 normalizar(idIntegracao),
                 data);
-    }
-
-    private Integer parseStatus(String status) {
-        if (status == null || status.isEmpty()) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(status.replace(",", "."));
-        } catch (NumberFormatException e) {
-            log.warn("Status inválido: {}", status);
-            return null;
-        }
     }
 
     /** Query param em branco (?cliente=) vale como ausente, e não como "cliente igual a vazio". */
