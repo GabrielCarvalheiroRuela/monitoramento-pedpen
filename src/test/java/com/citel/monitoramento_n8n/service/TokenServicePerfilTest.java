@@ -33,25 +33,24 @@ class TokenServicePerfilTest {
     }
 
     @Test
-    void tokenDeAdminLevaPerfilAdmin() {
-        assertThat(perfilDoToken("ADMIN")).isEqualTo("ADMIN");
-    }
-
-    @Test
-    void tokenDeUsuarioComumLevaPerfilUsuario() {
-        assertThat(perfilDoToken("USUARIO")).isEqualTo("USUARIO");
+    void tokenLevaOPerfilDeCadaUm() {
+        assertThat(perfilDoToken("ADM")).isEqualTo("ADM");
+        assertThat(perfilDoToken("DEV")).isEqualTo("DEV");
+        assertThat(perfilDoToken("USR")).isEqualTo("USR");
     }
 
     @Test
     void oClaimVaiNormalizadoEnaoComoEstaNoBanco() {
-        assertThat(perfilDoToken(" admin ")).isEqualTo("ADMIN");
-        assertThat(perfilDoToken("ADMN")).isEqualTo("USUARIO");
-        assertThat(perfilDoToken(null)).isEqualTo("USUARIO");
+        assertThat(perfilDoToken(" adm ")).isEqualTo("ADM");
+        assertThat(perfilDoToken(" dev ")).isEqualTo("DEV");
+        assertThat(perfilDoToken("ADMIN")).isEqualTo("USR");
+        assertThat(perfilDoToken("ADMN")).isEqualTo("USR");
+        assertThat(perfilDoToken(null)).isEqualTo("USR");
     }
 
     @Test
     void oTokenContinuaIdentificandoOUsuarioInterno() {
-        String token = service.gerarTokenUsuario(usuario("ADMIN"));
+        String token = service.gerarTokenUsuario(usuario("ADM"));
 
         TokenService.Identidade identidade = service.decodificar(token);
 

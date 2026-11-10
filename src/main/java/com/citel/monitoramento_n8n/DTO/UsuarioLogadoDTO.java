@@ -12,16 +12,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record UsuarioLogadoDTO(
         String email,
         String nome,
-        @Schema(description = "ADMIN ou USUARIO, lido do CADUSR (USR_PERFIL) no momento da chamada.",
-                allowableValues = {Usuario.PERFIL_ADMIN, Usuario.PERFIL_USUARIO})
+        @Schema(description = "ADM, DEV ou USR, lido do CADUSR (USR_PERFIL) no momento da chamada.",
+                allowableValues = {Usuario.PERFIL_ADM, Usuario.PERFIL_DEV, Usuario.PERFIL_USR})
         String perfil
 ) {
 
-    /** O perfil sai normalizado: um valor estranho no banco aparece como USUARIO, nunca como lixo. */
+    /** O perfil sai normalizado: um valor estranho no banco aparece como USR, nunca como lixo. */
     public static UsuarioLogadoDTO de(Usuario usuario) {
         return new UsuarioLogadoDTO(
                 usuario.getEmail(),
                 usuario.getNome(),
-                usuario.isAdmin() ? Usuario.PERFIL_ADMIN : Usuario.PERFIL_USUARIO);
+                usuario.perfilEfetivo());
     }
 }

@@ -15,6 +15,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Usuário interno da Citel, autenticado pelo Google Workspace (CADUSR).
@@ -31,8 +32,12 @@ import java.util.List;
 @Setter
 public class Usuario implements UserDetails {
 
-    public static final String PERFIL_ADMIN = "ADMIN";
-    public static final String PERFIL_USUARIO = "USUARIO";
+    /** Acesso completo. */
+    public static final String PERFIL_ADM = "ADM";
+    /** Time de desenvolvimento: vê tudo que é de consulta (inclusive a matriz de funcionalidades e os workflows), sem gravar. */
+    public static final String PERFIL_DEV = "DEV";
+    /** O padrão: monitoramento, integrações e a lista de plataformas. */
+    public static final String PERFIL_USR = "USR";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,12 +59,12 @@ public class Usuario implements UserDetails {
     private String ativo;
 
     /**
-     * Perfil de acesso: 'ADMIN' ou 'USUARIO'. Quem é admin é dado do banco, nunca do código: muda-se
+     * Perfil de acesso: 'ADM', 'DEV' ou 'USR'. O perfil é dado do banco, nunca do código: muda-se
      * com um UPDATE no CADUSR e vale na próxima requisição, porque o SecurityFilter relê o usuário a
-     * cada chamada. Todo usuário novo nasce 'USUARIO'.
+     * cada chamada. Todo usuário novo nasce 'USR'.
      */
     @Column(name = "USR_PERFIL", length = 10, nullable = false)
-    private String perfil = PERFIL_USUARIO;
+    private String perfil = PERFIL_USR;
 
     @Column(name = "USR_DHUINC", insertable = false, updatable = false)
     private LocalDateTime dataInclusao;
@@ -68,18 +73,35 @@ public class Usuario implements UserDetails {
     private LocalDateTime dataUltimoAcesso;
 
     /**
-     * Compara sem diferenciar caixa nem espaços. Nulo ou qualquer outro valor conta como não-admin:
-     * na dúvida o acesso fecha, e um erro de digitação no banco nunca promove ninguém.
+     * O perfil em uma das três formas válidas, sem diferenciar caixa nem espaços. Nulo ou qualquer outro valor
+     * (inclusive os antigos ADMIN e USUARIO) vira USR: na dúvida o acesso fecha, e um erro de digitação no banco
+     * nunca promove ninguém.
      */
-    public boolean isAdmin() {
-        return perfil != null && PERFIL_ADMIN.equalsIgnoreCase(perfil.trim());
+    public String perfilEfetivo() {
+        String normalizado = perfil == null ? "" : perfil.trim().toUpperCase(Locale.ROOT);
+        return PERFIL_ADM.equals(normalizado) || PERFIL_DEV.equals(normalizado) ? normalizado : PERFIL_USR;
     }
 
-    /** ROLE_INTERNO vale para todos; ROLE_ADMIN é somado só para quem tem o perfil ADMIN. */
+    public boolean isAdmin() {
+        return PERFIL_ADM.equals(perfilEfetivo());
+    }
+
+    public boolean isDev() {
+        return PERFIL_DEV.equals(perfilEfetivo());
+    }
+
+    /**
+     * ROLE_INTERNO vale para todos. ROLE_DEV é de quem tem o perfil DEV e também do ADM, que tem acesso completo, então
+     * uma regra "pelo menos DEV" é só hasRole("DEV"). ROLE_ADMIN é só do ADM.
+     */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         if (isAdmin()) {
-            return List.of(new SimpleGrantedAuthority("ROLE_INTERNO"), new SimpleGrantedAuthority("ROLE_ADMIN"));
+            return List.of(new SimpleGrantedAuthority("ROLE_INTERNO"), new SimpleGrantedAuthority("ROLE_DEV"),
+                    new SimpleGrantedAuthority("ROLE_ADMIN"));
+        }
+        if (isDev()) {
+            return List.of(new SimpleGrantedAuthority("ROLE_INTERNO"), new SimpleGrantedAuthority("ROLE_DEV"));
         }
         return List.of(new SimpleGrantedAuthority("ROLE_INTERNO"));
     }

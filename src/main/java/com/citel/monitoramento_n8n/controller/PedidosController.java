@@ -72,7 +72,7 @@ public class PedidosController {
                     processar de novo. Só pedidos com erro (status 2) podem ser reprocessados; \
                     em qualquer outro status a resposta é 409. O sequencialProcessamento não muda.
 
-                    Qualquer usuário interno (perfil ADMIN ou USUARIO) pode; o lojista e quem não \
+                    Qualquer usuário interno (perfil ADM, DEV ou USR) pode; o lojista e quem não \
                     está logado recebem 403. O id vem no corpo do GET /pedidos e do GET /pendentes.""")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Pedido de volta à fila (status 0)",

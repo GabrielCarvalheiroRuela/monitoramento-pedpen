@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Regra das telas de admin: o usuário interno sem perfil ADMIN leva 403; admin e lojista (o n8n)
+ * Regra das telas de admin: o usuário interno sem perfil ADM (o DEV inclusive) leva 403; admin e lojista (o n8n)
  * passam como antes. Aqui só a camada de segurança é real; serviços e repositórios são falsos.
  */
 @WebMvcTest(controllers = {PlataformaController.class, ClienteConsultaController.class, IntegracaoController.class})
@@ -77,10 +77,20 @@ class PerfilAcessoTest {
     }
 
     @Test
+    void devCadastraPlataformaEIntegracao() throws Exception {
+        // O DEV cadastra plataforma e integração (e vê a lista de lojistas do formulário).
+        assertThat(statusDoPost("/plataformas", "INTERNO", "DEV")).isNotEqualTo(403);
+        assertThat(statusDoPost("/integracoes", "INTERNO", "DEV")).isNotEqualTo(403);
+        mvc.perform(get("/clientes").with(user("pessoa").roles("INTERNO", "DEV")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void adminPassaPelaRegra() throws Exception {
-        assertThat(statusDoPost("/plataformas", "INTERNO", "ADMIN")).isNotEqualTo(403);
-        assertThat(statusDoPost("/integracoes", "INTERNO", "ADMIN")).isNotEqualTo(403);
-        mvc.perform(get("/clientes").with(user("pessoa").roles("INTERNO", "ADMIN")))
+        // O ADM de verdade tem os três papéis (ver Usuario.getAuthorities).
+        assertThat(statusDoPost("/plataformas", "INTERNO", "DEV", "ADMIN")).isNotEqualTo(403);
+        assertThat(statusDoPost("/integracoes", "INTERNO", "DEV", "ADMIN")).isNotEqualTo(403);
+        mvc.perform(get("/clientes").with(user("pessoa").roles("INTERNO", "DEV", "ADMIN")))
                 .andExpect(status().isOk());
     }
 
