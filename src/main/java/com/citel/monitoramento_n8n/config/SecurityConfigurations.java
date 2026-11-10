@@ -48,12 +48,13 @@ public class SecurityConfigurations {
                     req.requestMatchers(HttpMethod.POST, "/produtos", "/produtos/lote",
                             "/pendentes", "/pendentes-lote").hasRole("LOJISTA");
 
-                    // Telas de admin do portal (Plataformas e Nova integração). A única barreira é
-                    // para o usuário interno SEM perfil ADMIN (USR_PERFIL em CADUSR): ele leva 403.
-                    // Lojistas — o n8n — e admins passam exatamente como antes, de propósito.
+                    // Telas do portal. Cadastrar plataforma, Nova integração (POST /integracoes e a lista de lojistas
+                    // que o formulário usa) são do DEV e do ADM, que tem ROLE_DEV também. O usuário interno USR leva 403.
+                    // Lojistas — o n8n — passam exatamente como antes, de propósito.
                     // O POST /cadastro, mais acima, continua aberto: ainda é usado por outros clientes.
-                    req.requestMatchers(HttpMethod.POST, "/plataformas", "/integracoes").hasAnyRole("ADMIN", "LOJISTA");
-                    req.requestMatchers(HttpMethod.GET, "/clientes").hasAnyRole("ADMIN", "LOJISTA");
+                    req.requestMatchers(HttpMethod.POST, "/plataformas").hasAnyRole("DEV", "LOJISTA");
+                    req.requestMatchers(HttpMethod.POST, "/integracoes").hasAnyRole("DEV", "LOJISTA");
+                    req.requestMatchers(HttpMethod.GET, "/clientes").hasAnyRole("DEV", "LOJISTA");
 
                     // Edição de integração (leitura dos dados e PATCH): só ADMIN, sem a exceção do
                     // LOJISTA das rotas acima, porque aqui nem o n8n edita. O padrão tem exatamente
@@ -61,6 +62,15 @@ public class SecurityConfigurations {
                     // que o n8n continua usando.
                     req.requestMatchers(HttpMethod.GET, "/integracoes/*/*").hasRole("ADMIN");
                     req.requestMatchers(HttpMethod.PATCH, "/integracoes/*/*").hasRole("ADMIN");
+
+                    // Matriz de funcionalidades (Req. 474225). O USR não vê a matriz. O DEV (e o ADM, que tem ROLE_DEV)
+                    // consulta e marca a situação de uma funcionalidade numa plataforma (PUT .../plataformas/{plataforma}).
+                    // Criar, editar e excluir a funcionalidade em si (todo o resto) é só do ADM, sem a exceção do LOJISTA.
+                    // As rotas de escrita recebem @AuthenticationPrincipal Usuario, que no token de lojista é nulo.
+                    // A ordem importa: as regras mais específicas vêm antes do padrão que pega o resto.
+                    req.requestMatchers(HttpMethod.GET, "/funcionalidades", "/funcionalidades/**").hasRole("DEV");
+                    req.requestMatchers(HttpMethod.PUT, "/funcionalidades/*/plataformas/*").hasRole("DEV");
+                    req.requestMatchers("/funcionalidades", "/funcionalidades/**").hasRole("ADMIN");
 
                     // Recebe @AuthenticationPrincipal Usuario: token de lojista chegaria com o
                     // principal nulo e quebraria com 500, então só usuário interno entra (403 aos demais).

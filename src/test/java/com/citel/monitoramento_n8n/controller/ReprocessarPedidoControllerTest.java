@@ -57,8 +57,8 @@ class ReprocessarPedidoControllerTest {
 
     @BeforeEach
     void preparar() {
-        admin = interno("Gabriel Beraldo", "ADMIN");
-        comum = interno("Pessoa Comum", "USUARIO");
+        admin = interno("Gabriel Beraldo", "ADM");
+        comum = interno("Pessoa Comum", "USR");
 
         pedido = new Pedido();
         pedido.setCodigoPedido("1234");

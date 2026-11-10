@@ -78,7 +78,7 @@ public class TokenService {
                     .withSubject(usuario.getEmail())
                     .withClaim("id", usuario.getId())
                     .withClaim(CLAIM_TIPO, TIPO_USUARIO)
-                    .withClaim(CLAIM_PERFIL, usuario.isAdmin() ? Usuario.PERFIL_ADMIN : Usuario.PERFIL_USUARIO)
+                    .withClaim(CLAIM_PERFIL, usuario.perfilEfetivo())
                     .withExpiresAt(dataExpiracao())
                     .sign(algoritmo);
 

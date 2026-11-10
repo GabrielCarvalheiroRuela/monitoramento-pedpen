@@ -58,8 +58,8 @@ public class AuthGoogleService {
         novo.setNome(identidade.nome());
         novo.setGoogleId(identidade.subject());
         novo.setAtivo(ATIVO);
-        // Ninguém entra como admin: promover é um UPDATE deliberado no CADUSR (USR_PERFIL).
-        novo.setPerfil(Usuario.PERFIL_USUARIO);
+        // Ninguém entra como ADM nem como DEV: promover é um UPDATE deliberado no CADUSR (USR_PERFIL).
+        novo.setPerfil(Usuario.PERFIL_USR);
         novo.setDataUltimoAcesso(LocalDateTime.now());
 
         log.info("Primeiro acesso - criando usuário interno {}", identidade.email());

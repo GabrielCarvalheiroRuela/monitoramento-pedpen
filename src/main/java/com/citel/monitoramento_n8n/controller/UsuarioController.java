@@ -21,7 +21,7 @@ public class UsuarioController {
 
     @Operation(summary = "Devolve o usuário interno dono do token",
             description = """
-                    Devolve e-mail, nome e perfil (ADMIN ou USUARIO). O perfil é lido do CADUSR a \
+                    Devolve e-mail, nome e perfil (ADM, DEV ou USR). O perfil é lido do CADUSR a \
                     cada chamada, então uma promoção ou um rebaixamento vale na hora — ao contrário \
                     do claim "perfil" do token, que só muda no próximo login.
 

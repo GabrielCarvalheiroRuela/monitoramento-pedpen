@@ -49,38 +49,44 @@ class UsuarioControllerTest {
     }
 
     @Test
-    void adminRecebeSeuPerfil() throws Exception {
-        mvc.perform(get("/usuarios/me").with(user(usuario("ADMIN"))))
+    void admRecebeSeuPerfil() throws Exception {
+        mvc.perform(get("/usuarios/me").with(user(usuario("ADM"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("pessoa@citelsoftware.com.br"))
                 .andExpect(jsonPath("$.nome").value("Pessoa Teste"))
-                .andExpect(jsonPath("$.perfil").value("ADMIN"));
+                .andExpect(jsonPath("$.perfil").value("ADM"));
     }
 
     @Test
-    void usuarioComumRecebeUsuario() throws Exception {
-        mvc.perform(get("/usuarios/me").with(user(usuario("USUARIO"))))
+    void devEUsrRecebemOSeu() throws Exception {
+        mvc.perform(get("/usuarios/me").with(user(usuario("DEV"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.perfil").value("USUARIO"));
+                .andExpect(jsonPath("$.perfil").value("DEV"));
+        mvc.perform(get("/usuarios/me").with(user(usuario("USR"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perfil").value("USR"));
     }
 
     @Test
-    void valorEstranhoNoBancoAparecemComoUsuario() throws Exception {
+    void valorEstranhoOuAntigoNoBancoApareceComoUsr() throws Exception {
         mvc.perform(get("/usuarios/me").with(user(usuario("ADMN"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.perfil").value("USUARIO"));
+                .andExpect(jsonPath("$.perfil").value("USR"));
+        mvc.perform(get("/usuarios/me").with(user(usuario("ADMIN"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perfil").value("USR"));
     }
 
     @Test
-    void adminComCaixaDiferenteNoBancoContaComoAdmin() throws Exception {
-        mvc.perform(get("/usuarios/me").with(user(usuario(" admin "))))
+    void perfilComCaixaDiferenteNoBancoContaNormalmente() throws Exception {
+        mvc.perform(get("/usuarios/me").with(user(usuario(" adm "))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.perfil").value("ADMIN"));
+                .andExpect(jsonPath("$.perfil").value("ADM"));
     }
 
     @Test
     void naoDevolveNadaAlemDeEmailNomeEPerfil() throws Exception {
-        Usuario comGoogleId = usuario("ADMIN");
+        Usuario comGoogleId = usuario("ADM");
         comGoogleId.setGoogleId("1234567890");
 
         mvc.perform(get("/usuarios/me").with(user(comGoogleId)))

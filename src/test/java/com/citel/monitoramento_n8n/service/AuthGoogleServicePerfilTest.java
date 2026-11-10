@@ -46,7 +46,7 @@ class AuthGoogleServicePerfilTest {
 
         ArgumentCaptor<Usuario> salvo = ArgumentCaptor.forClass(Usuario.class);
         verify(usuarioRepository).save(salvo.capture());
-        assertThat(salvo.getValue().getPerfil()).isEqualTo(Usuario.PERFIL_USUARIO);
+        assertThat(salvo.getValue().getPerfil()).isEqualTo(Usuario.PERFIL_USR);
         assertThat(salvo.getValue().isAdmin()).isFalse();
         assertThat(salvo.getValue().getAtivo()).isEqualTo("S");
     }
@@ -58,12 +58,12 @@ class AuthGoogleServicePerfilTest {
         existente.setEmail(EMAIL);
         existente.setNome("Nome antigo");
         existente.setAtivo("S");
-        existente.setPerfil(Usuario.PERFIL_ADMIN);
+        existente.setPerfil(Usuario.PERFIL_ADM);
         when(usuarioRepository.findByEmail(EMAIL)).thenReturn(Optional.of(existente));
 
         service.autenticar("id-token");
 
-        assertThat(existente.getPerfil()).isEqualTo(Usuario.PERFIL_ADMIN);
+        assertThat(existente.getPerfil()).isEqualTo(Usuario.PERFIL_ADM);
         assertThat(existente.getNome()).isEqualTo("Pessoa");
     }
 
@@ -73,11 +73,11 @@ class AuthGoogleServicePerfilTest {
         Usuario existente = new Usuario();
         existente.setEmail(EMAIL);
         existente.setAtivo("S");
-        existente.setPerfil(Usuario.PERFIL_USUARIO);
+        existente.setPerfil(Usuario.PERFIL_USR);
         when(usuarioRepository.findByEmail(EMAIL)).thenReturn(Optional.of(existente));
 
         service.autenticar("id-token");
 
-        assertThat(existente.getPerfil()).isEqualTo(Usuario.PERFIL_USUARIO);
+        assertThat(existente.getPerfil()).isEqualTo(Usuario.PERFIL_USR);
     }
 }

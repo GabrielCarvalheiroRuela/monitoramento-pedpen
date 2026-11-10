@@ -38,7 +38,7 @@ public class IntegracaoController {
         this.service = service;
     }
 
-    @Operation(summary = "Cadastra uma nova integração de lojista",
+    @Operation(summary = "Cadastra uma nova integração de lojista (DEV e ADM)",
             description = """
                     Onboarding de tenant. O lojista já deve existir em CADCLI com o mesmo código \
                     (POST /cadastro). O webhookToken é gerado no servidor e devolvido uma única vez \
@@ -112,16 +112,16 @@ public class IntegracaoController {
                 : service.listarResumo(plataforma, ativo, slug));
     }
 
-    @Operation(summary = "Dados de uma integração para a tela de edição (somente ADMIN)",
+    @Operation(summary = "Dados de uma integração para a tela de edição (somente ADM)",
             description = """
                     Devolve a identidade da integração e os três campos editáveis, com a chave \
                     privada. Não traz apiToken, refreshToken nem webhookToken. Só usuário interno \
-                    com perfil ADMIN: usuário comum e lojista recebem 403.""")
+                    com perfil ADM: os demais perfis e o lojista recebem 403.""")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Integração encontrada",
                     content = {@Content(mediaType = "application/json",
                             schema = @Schema(implementation = IntegracaoEdicaoDTO.class))}),
-            @ApiResponse(responseCode = "403", description = "Não é um usuário interno ADMIN"),
+            @ApiResponse(responseCode = "403", description = "Não é um usuário interno ADM"),
             @ApiResponse(responseCode = "404", description = "Par código de integração + lojista inexistente"),
             @ApiResponse(responseCode = "500", description = "Erro interno no servidor")
     })
@@ -133,19 +133,19 @@ public class IntegracaoController {
         return ResponseEntity.ok(service.buscarParaEdicao(codigoIntegracao, codigoCliente));
     }
 
-    @Operation(summary = "Edita webservice, URL da API e chave privada de uma integração (somente ADMIN)",
+    @Operation(summary = "Edita webservice, URL da API e chave privada de uma integração (somente ADM)",
             description = """
                     Só estes três campos podem ser alterados; qualquer outro no corpo é ignorado. \
                     Campo ausente ou nulo preserva o valor atual. Cada campo que realmente mudou \
                     gera uma linha no LOGINT com o valor anterior, o atual e o nome do usuário; se \
-                    nada mudar, nada é gravado. Só usuário interno com perfil ADMIN: usuário comum \
-                    e lojista recebem 403.""")
+                    nada mudar, nada é gravado. Só usuário interno com perfil ADM: os demais perfis \
+                    e o lojista recebem 403.""")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Integração com os valores atuais",
                     content = {@Content(mediaType = "application/json",
                             schema = @Schema(implementation = IntegracaoEdicaoDTO.class))}),
             @ApiResponse(responseCode = "400", description = "Campo vazio, ou chave que não está em formato PEM"),
-            @ApiResponse(responseCode = "403", description = "Não é um usuário interno ADMIN"),
+            @ApiResponse(responseCode = "403", description = "Não é um usuário interno ADM"),
             @ApiResponse(responseCode = "404", description = "Par código de integração + lojista inexistente"),
             @ApiResponse(responseCode = "500", description = "Erro interno no servidor")
     })

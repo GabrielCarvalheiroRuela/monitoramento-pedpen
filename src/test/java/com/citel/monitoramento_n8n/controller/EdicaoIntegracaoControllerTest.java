@@ -64,8 +64,8 @@ class EdicaoIntegracaoControllerTest {
 
     @BeforeEach
     void preparar() {
-        admin = interno("Gabriel Beraldo", "ADMIN");
-        comum = interno("Pessoa Comum", "USUARIO");
+        admin = interno("Gabriel Beraldo", "ADM");
+        comum = interno("Pessoa Comum", "USR");
 
         IntegracaoEdicaoDTO resposta = new IntegracaoEdicaoDTO("0000004", 401L, "TODO TETO", "tray", "todo-teto",
                 true, "http://novo.local:25058", "https://loja.commercesuite.com.br/web_api",

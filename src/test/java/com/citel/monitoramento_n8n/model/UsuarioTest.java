@@ -23,40 +23,60 @@ class UsuarioTest {
     }
 
     @Test
-    void usuarioNovoNasceComoUsuarioComum() {
-        assertThat(new Usuario().getPerfil()).isEqualTo(Usuario.PERFIL_USUARIO);
+    void usuarioNovoNasceComoUsr() {
+        assertThat(new Usuario().getPerfil()).isEqualTo(Usuario.PERFIL_USR);
         assertThat(new Usuario().isAdmin()).isFalse();
+        assertThat(new Usuario().isDev()).isFalse();
     }
 
     @Test
-    void adminRecebeInternoEAdmin() {
-        assertThat(autoridades(comPerfil("ADMIN"))).containsExactly("ROLE_INTERNO", "ROLE_ADMIN");
+    void admRecebeInternoDevEAdmin() {
+        assertThat(autoridades(comPerfil("ADM"))).containsExactly("ROLE_INTERNO", "ROLE_DEV", "ROLE_ADMIN");
     }
 
     @Test
-    void usuarioComumRecebeSoInterno() {
-        assertThat(autoridades(comPerfil("USUARIO"))).containsExactly("ROLE_INTERNO");
+    void devRecebeInternoEDevMasNaoAdmin() {
+        Usuario dev = comPerfil("DEV");
+
+        assertThat(autoridades(dev)).containsExactly("ROLE_INTERNO", "ROLE_DEV");
+        assertThat(dev.isDev()).isTrue();
+        assertThat(dev.isAdmin()).isFalse();
+    }
+
+    @Test
+    void usrRecebeSoInterno() {
+        assertThat(autoridades(comPerfil("USR"))).containsExactly("ROLE_INTERNO");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ADMIN", "admin", " Admin "})
-    void adminSeReconheceSemCaixaNemEspacos(String perfil) {
+    @ValueSource(strings = {"ADM", "adm", " Adm "})
+    void admSeReconheceSemCaixaNemEspacos(String perfil) {
         assertThat(comPerfil(perfil).isAdmin()).isTrue();
+        assertThat(comPerfil(perfil).perfilEfetivo()).isEqualTo("ADM");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"DEV", "dev", " Dev "})
+    void devSeReconheceSemCaixaNemEspacos(String perfil) {
+        assertThat(comPerfil(perfil).isDev()).isTrue();
+        assertThat(comPerfil(perfil).perfilEfetivo()).isEqualTo("DEV");
     }
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"USUARIO", "ADMN", "SUPERADMIN", "ADMIN;", "1"})
-    void qualquerOutroValorNaoEAdmin(String perfil) {
+    @ValueSource(strings = {"USR", "ADMIN", "USUARIO", "ADMN", "SUPERADM", "ADM;", "DEVELOPER", "1"})
+    void qualquerOutroValorContaComoUsr(String perfil) {
         Usuario usuario = comPerfil(perfil);
 
+        assertThat(usuario.perfilEfetivo()).isEqualTo("USR");
         assertThat(usuario.isAdmin()).isFalse();
+        assertThat(usuario.isDev()).isFalse();
         assertThat(autoridades(usuario)).containsExactly("ROLE_INTERNO");
     }
 
     @Test
     void perfilNaoMudaAContaAtivaNemInativa() {
-        Usuario admin = comPerfil("ADMIN");
+        Usuario admin = comPerfil("ADM");
         assertThat(admin.isEnabled()).isTrue();
 
         admin.setAtivo("N");
