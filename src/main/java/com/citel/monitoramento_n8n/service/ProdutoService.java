@@ -1,23 +1,32 @@
 package com.citel.monitoramento_n8n.service;
 
 
+import com.citel.monitoramento_n8n.DTO.FiltrosProdutosDTO;
+import com.citel.monitoramento_n8n.DTO.PaginaDTO;
 import com.citel.monitoramento_n8n.DTO.ProdutoDTO;
 import com.citel.monitoramento_n8n.DTO.ProdutoLoteDTO;
 import com.citel.monitoramento_n8n.exception.BusinessException;
 import com.citel.monitoramento_n8n.model.Produto;
 import com.citel.monitoramento_n8n.repository.ProdutoRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,6 +42,12 @@ public class ProdutoService {
 
     /** Carimbo anexado à mensagem de erro quando o produto sai da liberação. */
     private static final String MARCA_REMOCAO = "REMOVIDO DA LIBERACAO";
+
+    /** Registros por página que o GET /produtos aceita, além de {@link #TAMANHO_TODOS}. */
+    private static final Set<Integer> TAMANHOS_PERMITIDOS = Set.of(50, 100, 1000);
+
+    /** {@code tamanho=0}: uma única página com todos os registros que atendem aos filtros. */
+    private static final int TAMANHO_TODOS = 0;
 
     private final ProdutoRepository repository;
 
@@ -170,13 +185,21 @@ public class ProdutoService {
 
 
     /**
-     * Lista os produtos no PRO_STATUS pedido: 0 (pendente, o padrão do endpoint) ou 1. As duas
-     * pontas do filtro de tentativas são exclusivas e opcionais: {@code tentativaMaiorQue = 5}
+     * Lista uma página dos produtos no PRO_STATUS pedido: 0 (pendente, o padrão do endpoint) ou 1.
+     * As duas pontas do filtro de tentativas são exclusivas e opcionais: {@code tentativaMaiorQue = 5}
      * traz quem tem 6 ou mais, {@code tentativaMenorQue = 5} traz quem tem 4 ou menos, as duas
-     * juntas delimitam uma faixa e nenhuma delas = sem filtro.
+     * juntas delimitam uma faixa e nenhuma delas = sem filtro. O período filtra a data do erro
+     * (PRO_DTAERR) e as duas pontas são inclusivas e opcionais.
+     *
+     * <p>Ordena pela data do erro e desempata pelo id, para que registros com o mesmo instante não
+     * troquem de página entre uma consulta e a seguinte. A página começa em 1; uma página além da
+     * última volta vazia, com os totais corretos, para o chamador saber onde está.
      */
-    public List<Produto> retornarProdutos(int status, String codigoProduto, String cliente, String idIntegracao,
-                                          Integer tentativaMaiorQue, Integer tentativaMenorQue) {
+    public PaginaDTO<Produto> retornarProdutos(int status, String codigoProduto, String cliente, String idIntegracao,
+                                               Integer tentativaMaiorQue, Integer tentativaMenorQue,
+                                               LocalDateTime dataInicial, LocalDateTime dataFinal,
+                                               String plataforma, String produtoContem, String erroContem,
+                                               int pagina, int tamanho, String ordem) {
         // Recusar um status fora de 0/1 é melhor que devolver lista vazia, que se confunde com
         // "não há produtos nesse status".
         validarStatus(status);
@@ -192,10 +215,77 @@ public class ProdutoService {
                             + " ser ao menos tentativaMaiorQue + 2");
         }
 
-        log.info("🔍 Buscando Produtos - Status: {}, Cliente: {}, Código: {}, Tentativas: >{} e <{}",
-                status, cliente, codigoProduto, tentativaMaiorQue, tentativaMenorQue);
-        return repository.buscar(status, codigoProduto, cliente, idIntegracao,
-                tentativaMaiorQue, tentativaMenorQue);
+        if (dataInicial != null && dataFinal != null && dataInicial.isAfter(dataFinal)) {
+            throw new BusinessException(
+                    "dataInicial (" + dataInicial + ") não pode ser depois de dataFinal (" + dataFinal + ")");
+        }
+        if (pagina < 1) {
+            throw new BusinessException("pagina deve ser 1 ou maior, mas veio " + pagina);
+        }
+        boolean todos = tamanho == TAMANHO_TODOS;
+        if (!todos && !TAMANHOS_PERMITIDOS.contains(tamanho)) {
+            throw new BusinessException("tamanho deve ser 50, 100, 1000 ou 0 (todos), mas veio " + tamanho);
+        }
+        Sort.Direction direcao = direcaoDe(ordem);
+
+        log.info("🔍 Buscando Produtos - Status: {}, Cliente: {}, Código: {}, Tentativas: >{} e <{}, Período: {} a {}, Plataforma: {}, Contém: produto={} erro={}, Página: {} ({}), Ordem: {}",
+                status, cliente, codigoProduto, tentativaMaiorQue, tentativaMenorQue,
+                dataInicial, dataFinal, plataforma, produtoContem, erroContem,
+                pagina, tamanho, direcao);
+        // "Todos" é a página 1 sem limite: o Spring Data não faz COUNT quando a página não enche.
+        Pageable pageable = todos
+                ? PageRequest.of(0, Integer.MAX_VALUE, Sort.by(direcao, "dataErro", "id"))
+                : PageRequest.of(pagina - 1, tamanho, Sort.by(direcao, "dataErro", "id"));
+        PaginaDTO<Produto> resultado = PaginaDTO.de(repository.buscar(status, codigoProduto, cliente, idIntegracao,
+                tentativaMaiorQue, tentativaMenorQue, paraData(dataInicial), paraData(dataFinal),
+                StringUtils.hasText(plataforma) ? plataforma : null,
+                paraPadraoLike(produtoContem), paraPadraoLike(erroContem), pageable));
+        return todos
+                ? new PaginaDTO<>(resultado.itens(), 1, TAMANHO_TODOS, resultado.totalItens(), resultado.totalPaginas())
+                : resultado;
+    }
+
+    /**
+     * Texto da pesquisa pronto para o LIKE da consulta: em branco vira nulo (= sem filtro) e os
+     * curingas do LIKE ({@code %}, {@code _}) e o próprio escape ({@code !}) são escapados, para que
+     * "ABC_1" procure exatamente "ABC_1" e não "ABC" + qualquer letra + "1".
+     */
+    private static String paraPadraoLike(String texto) {
+        if (!StringUtils.hasText(texto)) {
+            return null;
+        }
+        return texto.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_");
+    }
+
+    /**
+     * Clientes e plataformas que têm produto no status pedido (0 ou 1), para a tela montar os filtros
+     * sem baixar a lista de produtos. Só traz o que existe naquele momento.
+     *
+     * <p>Os dois filtros se restringem um ao outro: com {@code plataforma}, os clientes são só os que
+     * têm produto nela; com {@code cliente}, as plataformas são só as em que ele tem produto. Cada
+     * lista ignora o próprio filtro, para a escolha atual não esconder as demais opções.
+     */
+    public FiltrosProdutosDTO retornarFiltros(int status, String cliente, String plataforma) {
+        validarStatus(status);
+        String clienteEscolhido = StringUtils.hasText(cliente) ? cliente : null;
+        String plataformaEscolhida = StringUtils.hasText(plataforma) ? plataforma : null;
+        return new FiltrosProdutosDTO(
+                repository.clientesComProduto(status, plataformaEscolhida),
+                repository.plataformasComProduto(status, clienteEscolhido));
+    }
+
+    /** "desc" (padrão, mais recente primeiro) ou "asc" (mais antigo primeiro), sem distinguir caixa. */
+    private static Sort.Direction direcaoDe(String ordem) {
+        if (!StringUtils.hasText(ordem)) {
+            return Sort.Direction.DESC;
+        }
+        return Sort.Direction.fromOptionalString(ordem.trim())
+                .orElseThrow(() -> new BusinessException("ordem deve ser asc ou desc, mas veio " + ordem));
+    }
+
+    /** O banco guarda PRO_DTAERR no fuso do servidor, o mesmo em que o JDBC lê a data. */
+    private static Date paraData(LocalDateTime data) {
+        return data == null ? null : Timestamp.valueOf(data);
     }
 
 
