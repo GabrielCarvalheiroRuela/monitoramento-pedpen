@@ -7,6 +7,7 @@ import com.citel.monitoramento_n8n.model.Usuario;
 import com.citel.monitoramento_n8n.service.PedidoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.Explode;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -48,22 +49,28 @@ public class PedidosController {
     }
 
 
-    @Operation(summary = "Lista todos os pedidos com status 'Pendente'",
-            description = "Retorna uma lista de todos os pedidos que foram registrados  e ainda não foram importados.")
+    @Operation(summary = "Lista os pedidos da fila de integração, filtrando por um ou mais status",
+            description = """
+                    O parâmetro `status` recebe uma lista e retorna os pedidos que estiverem em \
+                    qualquer um deles. Aceita tanto `?status=1,2` quanto `?status=1&status=2`. \
+                    Omitir o parâmetro traz todos os status. Os demais filtros são combinados \
+                    com E (ex.: `?status=1,2&cliente=chiareli`).""")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista de pedidos pendentes encontrada",
+            @ApiResponse(responseCode = "200", description = "Lista de pedidos encontrada",
                     content = { @Content(mediaType = "application/json",
                             array = @ArraySchema(schema = @Schema(implementation = Pedido.class))) }),
+            @ApiResponse(responseCode = "400", description = "Parâmetro inválido (ex.: status não numérico)"),
             @ApiResponse(responseCode = "500", description = "Erro interno no servidor")
     })
     @GetMapping("/pendentes")
     public ResponseEntity<List<Pedido>> retornarPedidosPendentes(
             @RequestParam(required = false) String cliente,
             @RequestParam(required = false) String codigoPedido,
-            @RequestParam(required = false) String status,
+            @Parameter(description = "Status a incluir, separados por vírgula. Ex.: 1,2", explode = Explode.FALSE)
+            @RequestParam(required = false) List<Integer> status,
             @RequestParam(required = false) String idIntegracao,
             @RequestParam(required = false)  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data) {
-        return ResponseEntity.ok(service.retornarPedidosPendentes(cliente, codigoPedido, status, idIntegracao, data));
+        return ResponseEntity.ok(service.retornarPedidos(status, cliente, codigoPedido, idIntegracao, data));
     }
 
     @Operation(summary = "Reprocessa um pedido com erro (usuário interno, admin ou comum)",
@@ -91,8 +98,8 @@ public class PedidosController {
 
     @Operation(summary = "Lista pedidos filtrando por um ou mais status",
             description = """
-                    Diferente de /pendentes, que aceita um único status, aqui o parâmetro `status`
-                    recebe uma lista e retorna os pedidos que estiverem em qualquer um deles.
+                    Mesmo comportamento do GET /pendentes: o parâmetro `status` recebe uma lista
+                    e retorna os pedidos que estiverem em qualquer um deles.
                     Aceita tanto `?status=1,2,3` quanto `?status=1&status=2&status=3`.
                     Omitir o parâmetro traz todos os status. Os demais filtros são combinados
                     com E (ex.: `?status=1,2&cliente=chiareli`).""")
@@ -105,7 +112,7 @@ public class PedidosController {
     })
     @GetMapping("/pedidos")
     public ResponseEntity<List<Pedido>> retornarPedidos(
-            @Parameter(description = "Status a incluir, separados por vírgula. Ex.: 1,2,3")
+            @Parameter(description = "Status a incluir, separados por vírgula. Ex.: 1,2,3", explode = Explode.FALSE)
             @RequestParam(required = false) List<Integer> status,
             @RequestParam(required = false) String cliente,
             @RequestParam(required = false) String codigoPedido,

@@ -18,7 +18,7 @@ Fornece endpoints para consulta de status, registro de pedidos e consulta.
 
 ## Endpoints:
 
-- GET     /pendentes -> Retorna os pedidos pendentes
+- GET     /pendentes -> Retorna os pedidos, filtrando por um ou mais status (`?status=1,2` ou `?status=1&status=2`)
 - POST    /pendentes -> Adiciona um pedido que ainda não foi integrado
 - PATCH   /pendentes -> Passando o NUMPOK + Nome do cliente, atualiza para integrado.
 
