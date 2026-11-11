@@ -16,7 +16,6 @@ public interface ProdutoRepository extends JpaRepository<Produto, String> {
     @Query("""
         SELECT p FROM Produto p
         WHERE p.status = :status
-          AND ((:libera IS NULL AND (p.libera IS NULL OR p.libera <> 'N')) OR p.libera = :libera)
           AND (:codigoProduto IS NULL OR p.codigoProduto = :codigoProduto)
           AND (:cliente IS NULL OR p.cliente = :cliente)
           AND (:idIntegracao IS NULL OR p.idIntegracao = :idIntegracao)
@@ -39,7 +38,6 @@ public interface ProdutoRepository extends JpaRepository<Produto, String> {
                          @Param("plataforma") String plataforma,
                          @Param("produtoContem") String produtoContem,
                          @Param("erroContem") String erroContem,
-                         @Param("libera") String libera,
                          Pageable pageable);
 
     /**
@@ -49,7 +47,6 @@ public interface ProdutoRepository extends JpaRepository<Produto, String> {
     @Query("""
         SELECT DISTINCT p.cliente FROM Produto p
         WHERE p.status = :status AND p.cliente IS NOT NULL
-          AND (p.libera IS NULL OR p.libera <> 'N')
           AND (:plataforma IS NULL OR p.plataforma = :plataforma)
         ORDER BY p.cliente
         """)
@@ -62,7 +59,6 @@ public interface ProdutoRepository extends JpaRepository<Produto, String> {
     @Query("""
         SELECT DISTINCT p.plataforma FROM Produto p
         WHERE p.status = :status AND p.plataforma IS NOT NULL
-          AND (p.libera IS NULL OR p.libera <> 'N')
           AND (:cliente IS NULL OR p.cliente = :cliente)
         ORDER BY p.plataforma
         """)
