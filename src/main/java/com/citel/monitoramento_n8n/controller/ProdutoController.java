@@ -1,6 +1,8 @@
 package com.citel.monitoramento_n8n.controller;
 
 
+import com.citel.monitoramento_n8n.DTO.FiltrosProdutosDTO;
+import com.citel.monitoramento_n8n.DTO.PaginaDTO;
 import com.citel.monitoramento_n8n.DTO.ProdutoDTO;
 import com.citel.monitoramento_n8n.DTO.ProdutoLoteDTO;
 import com.citel.monitoramento_n8n.DTO.ProdutoRemovidoDTO;
@@ -14,9 +16,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -78,10 +82,41 @@ public class ProdutoController {
     }
 
 
-    @Operation(summary = "Lista os produtos com erro de integração, filtrando pelo status",
+    @Operation(summary = "Lista os clientes e as plataformas que têm produto com erro, para montar os filtros",
             description = """
-                    Retorna os produtos registrados com erro que estão no status pedido. Os filtros
-                    são combinados com E.
+                    Retorna, sem repetir e em ordem alfabética, os clientes e as plataformas que têm
+                    ao menos um produto no status pedido (`status` 0 ou 1; omitido, vale 0). Serve
+                    para preencher os filtros da tela sem baixar a lista de produtos; a lista em si,
+                    paginada, vem do GET /produtos.
+
+                    Os dois filtros se restringem um ao outro: com `plataforma`, `clientes` traz só
+                    os que têm produto naquela plataforma; com `cliente`, `plataformas` traz só as
+                    em que ele tem produto. Cada lista ignora o próprio filtro.""")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Clientes e plataformas com produto no status",
+                    content = { @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = FiltrosProdutosDTO.class)) }),
+            @ApiResponse(responseCode = "400", description = "status em formato inválido"),
+            @ApiResponse(responseCode = "422", description = "status diferente de 0 e 1"),
+            @ApiResponse(responseCode = "500", description = "Erro interno no servidor")
+    })
+    @GetMapping("/filtros")
+    public ResponseEntity<FiltrosProdutosDTO> retornarFiltros(
+            @Parameter(description = "PRO_STATUS a consultar: 0 ou 1. Omitido, vale 0")
+            @RequestParam(defaultValue = "0") int status,
+            @Parameter(description = "Restringe as plataformas às em que este cliente (exato) tem produto")
+            @RequestParam(required = false) String cliente,
+            @Parameter(description = "Restringe os clientes aos que têm produto nesta plataforma (exata)")
+            @RequestParam(required = false) String plataforma
+    ) {
+        return ResponseEntity.ok(service.retornarFiltros(status, cliente, plataforma));
+    }
+
+    @Operation(summary = "Lista os produtos com erro de integração, filtrando pelo status e paginando",
+            description = """
+                    Retorna uma página dos produtos registrados com erro que estão no status pedido,
+                    junto com o total de registros que atendem aos filtros. Os filtros são
+                    combinados com E.
 
                     O `status` aceita 0 ou 1. Omitido, vale 0: traz os que ainda não foram
                     resolvidos, como antes de o parâmetro existir. `?status=1` traz os que estão com
@@ -90,17 +125,36 @@ public class ProdutoController {
                     O número de tentativas é filtrado por comparação estrita, com as duas pontas
                     opcionais: `?tentativaMaiorQue=5` traz os que já falharam mais de 5 vezes,
                     `?tentativaMenorQue=5` os que falharam menos de 5 vezes, e as duas juntas
-                    delimitam uma faixa (`?tentativaMaiorQue=2&tentativaMenorQue=6` traz 3, 4 e 5).""")
+                    delimitam uma faixa (`?tentativaMaiorQue=2&tentativaMenorQue=6` traz 3, 4 e 5).
+
+                    O período filtra a data do erro, com as duas pontas inclusivas e opcionais, em
+                    data e hora ISO sem fuso (`?dataInicial=2026-11-05T08:00:00&dataFinal=2026-11-05T18:00:00`).
+                    `dataInicial` depois de `dataFinal` é recusada com 422.
+
+                    `produtoContem` e `erroContem` pesquisam por trecho, sem distinguir maiúsculas,
+                    em todos os registros e não só na página atual. `cliente` e `plataforma` são
+                    exatos; as opções válidas vêm do GET /produtos/filtros.
+
+                    A resposta é paginada: `pagina` começa em 1 (padrão 1) e `tamanho` aceita 50, 100
+                    ou 1000 (padrão 50), ou 0 para trazer todos os registros numa única página.
+                    Qualquer outro valor é recusado com 422. Com `tamanho=0` a `pagina` é ignorada e
+                    a consulta pode devolver milhares de registros. A ordem é pela data
+                    do erro: `ordem=desc` (padrão) traz o mais recente primeiro e `ordem=asc` o mais
+                    antigo. Uma página além da última volta com `itens` vazio e os totais corretos.
+
+                    `totalItens` e `totalPaginas` contam todos os registros que atendem aos filtros,
+                    inclusive os que não vieram na página. A contagem é feita no banco (COUNT), sem
+                    carregar os registros.""")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista de produtos no status pedido",
+            @ApiResponse(responseCode = "200", description = "Página de produtos no status pedido, com os totais",
                     content = { @Content(mediaType = "application/json",
-                            array = @ArraySchema(schema = @Schema(implementation = Produto.class))) }),
-            @ApiResponse(responseCode = "400", description = "status ou tentativas não numéricos"),
-            @ApiResponse(responseCode = "422", description = "status diferente de 0 e 1, ou faixa de tentativas impossível (ex.: maiorQue=5 com menorQue=5)"),
+                            schema = @Schema(implementation = PaginaDTO.class)) }),
+            @ApiResponse(responseCode = "400", description = "status, tentativas, pagina, tamanho ou datas em formato inválido"),
+            @ApiResponse(responseCode = "422", description = "status diferente de 0 e 1, faixa de tentativas ou de datas impossível, pagina menor que 1, tamanho diferente de 50, 100, 1000 e 0 ou ordem diferente de asc e desc"),
             @ApiResponse(responseCode = "500", description = "Erro interno no servidor")
     })
     @GetMapping()
-    public ResponseEntity<List<Produto>> retornarProdutosPendentes(
+    public ResponseEntity<PaginaDTO<Produto>> retornarProdutosPendentes(
             @Parameter(description = "PRO_STATUS a consultar: 0 ou 1. Omitido, traz os pendentes (0)")
             @RequestParam(defaultValue = "0") int status,
             @RequestParam(required = false) String codigoProduto,
@@ -109,10 +163,30 @@ public class ProdutoController {
             @Parameter(description = "Só produtos com MAIS tentativas que este valor (exclusivo). Ex.: 5 traz 6 ou mais")
             @RequestParam(required = false) Integer tentativaMaiorQue,
             @Parameter(description = "Só produtos com MENOS tentativas que este valor (exclusivo). Ex.: 5 traz 4 ou menos")
-            @RequestParam(required = false) Integer tentativaMenorQue
+            @RequestParam(required = false) Integer tentativaMenorQue,
+            @Parameter(description = "Só erros a partir desta data e hora (inclusive). ISO sem fuso, ex.: 2026-11-05T08:00:00")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicial,
+            @Parameter(description = "Só erros até esta data e hora (inclusive). ISO sem fuso, ex.: 2026-11-05T18:00:00")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFinal,
+            @Parameter(description = "Só a plataforma exata (PRO_INTEGR). As opções vêm do GET /produtos/filtros")
+            @RequestParam(required = false) String plataforma,
+            @Parameter(description = "Pesquisa no código do produto: traz os que CONTÊM o texto, sem distinguir maiúsculas")
+            @RequestParam(required = false) String produtoContem,
+            @Parameter(description = "Pesquisa na mensagem de erro: traz as que CONTÊM o texto, sem distinguir maiúsculas")
+            @RequestParam(required = false) String erroContem,
+            @Parameter(description = "Página a retornar, a partir de 1")
+            @RequestParam(defaultValue = "1") int pagina,
+            @Parameter(description = "Registros por página: 50, 100 ou 1000; 0 traz todos numa só página",
+                    schema = @Schema(allowableValues = {"50", "100", "1000", "0"}, defaultValue = "50"))
+            @RequestParam(defaultValue = "50") int tamanho,
+            @Parameter(description = "Ordem pela data do erro: desc (mais recente primeiro, padrão) ou asc (mais antigo primeiro)",
+                    schema = @Schema(allowableValues = {"desc", "asc"}, defaultValue = "desc"))
+            @RequestParam(defaultValue = "desc") String ordem
     ) {
         return ResponseEntity.ok(service.retornarProdutos(
-                status, codigoProduto, cliente, idIntegracao, tentativaMaiorQue, tentativaMenorQue));
+                status, codigoProduto, cliente, idIntegracao, tentativaMaiorQue, tentativaMenorQue,
+                dataInicial, dataFinal, plataforma, produtoContem, erroContem,
+                pagina, tamanho, ordem));
     }
 
     @Operation(summary = "Remove um produto do monitoramento",

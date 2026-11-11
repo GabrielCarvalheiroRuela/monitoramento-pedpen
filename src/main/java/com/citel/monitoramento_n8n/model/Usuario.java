@@ -90,6 +90,11 @@ public class Usuario implements UserDetails {
         return PERFIL_DEV.equals(perfilEfetivo());
     }
 
+    /** "Pelo menos DEV": o ADM tem acesso completo, então também conta. */
+    public boolean isDevOuAdmin() {
+        return isDev() || isAdmin();
+    }
+
     /**
      * ROLE_INTERNO vale para todos. ROLE_DEV é de quem tem o perfil DEV e também do ADM, que tem acesso completo, então
      * uma regra "pelo menos DEV" é só hasRole("DEV"). ROLE_ADMIN é só do ADM.

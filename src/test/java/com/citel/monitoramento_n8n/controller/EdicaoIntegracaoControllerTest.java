@@ -68,7 +68,7 @@ class EdicaoIntegracaoControllerTest {
         comum = interno("Pessoa Comum", "USR");
 
         IntegracaoEdicaoDTO resposta = new IntegracaoEdicaoDTO("0000004", 401L, "TODO TETO", "tray", "todo-teto",
-                true, "http://novo.local:25058", "https://loja.commercesuite.com.br/web_api",
+                true, "S", "http://novo.local:25058", "https://loja.commercesuite.com.br/web_api",
                 "-----BEGIN PRIVATE KEY-----");
         when(service.buscarParaEdicao("0000004", 401L)).thenReturn(resposta);
         when(service.editar(eq("0000004"), eq(401L), any(), any())).thenReturn(resposta);
