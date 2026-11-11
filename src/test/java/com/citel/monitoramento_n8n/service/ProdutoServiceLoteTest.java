@@ -68,7 +68,6 @@ class ProdutoServiceLoteTest {
         produto.setErro("erro antigo");
         produto.setRotina(ROTINA);
         produto.setIdIntegracao("0000004");
-        produto.setLibera("N");
         produto.setTentativa(4);
         return produto;
     }
@@ -138,7 +137,6 @@ class ProdutoServiceLoteTest {
         assertThat(existente.getTentativa()).isEqualTo(4);
         assertThat(existente.getPlataforma()).isEqualTo("TRAY");
         assertThat(existente.getIdIntegracao()).isEqualTo("0000004");
-        assertThat(existente.getLibera()).isEqualTo("N");
     }
 
     @Test

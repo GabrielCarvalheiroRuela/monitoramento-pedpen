@@ -23,12 +23,6 @@ public record ProdutoDTO(
          * Gravado como veio, sem conferir na CADINT.
          */
         String idIntegracao,
-        String rotina,
-        /**
-         * Liberação do produto (PROERR.PRO_LIBERA). Opcional e case-insensitive.
-         * Enviar 'N' remove o produto da liberação e carimba a mensagem de erro.
-         * Omitido, a liberação do registro existente fica como está.
-         */
-        String libera
+        String rotina
 ) {
 }
