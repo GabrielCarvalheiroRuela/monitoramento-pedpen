@@ -58,7 +58,7 @@ class ConsultaProdutosControllerTest {
         mvc.perform(get("/produtos").with(user(lojista)))
                 .andExpect(status().isOk());
 
-        verify(service).retornarProdutos(0, null, null, null, null, null, null, null, null, null, null, 1, 50, "desc");
+        verify(service).retornarProdutos(0, null, null, null, null, null, null, null, null, null, null, null, 1, 50, "desc");
     }
 
     @Test
@@ -66,7 +66,15 @@ class ConsultaProdutosControllerTest {
         mvc.perform(get("/produtos").param("status", "1").param("cliente", "LOJA").with(user(lojista)))
                 .andExpect(status().isOk());
 
-        verify(service).retornarProdutos(1, null, "LOJA", null, null, null, null, null, null, null, null, 1, 50, "desc");
+        verify(service).retornarProdutos(1, null, "LOJA", null, null, null, null, null, null, null, null, null, 1, 50, "desc");
+    }
+
+    @Test
+    void liberaChegaAoService() throws Exception {
+        mvc.perform(get("/produtos").param("libera", "N").with(user(lojista)))
+                .andExpect(status().isOk());
+
+        verify(service).retornarProdutos(0, null, null, null, null, null, null, null, null, null, null, "N", 1, 50, "desc");
     }
 
     @Test
@@ -83,7 +91,7 @@ class ConsultaProdutosControllerTest {
         verify(service).retornarProdutos(0, null, null, null, null, null,
                 LocalDateTime.of(2026, 11, 5, 8, 0),
                 LocalDateTime.of(2026, 11, 5, 18, 30, 59, 999_000_000),
-                null, null, null,
+                null, null, null, null,
                 3, 100, "asc");
     }
 
@@ -97,7 +105,7 @@ class ConsultaProdutosControllerTest {
                 .andExpect(status().isOk());
 
         verify(service).retornarProdutos(0, null, null, null, null, null, null, null,
-                "Tray", "04464", "peso", 1, 50, "desc");
+                "Tray", "04464", "peso", null, 1, 50, "desc");
     }
 
     @Test
@@ -139,7 +147,7 @@ class ConsultaProdutosControllerTest {
 
     @Test
     void respostaTrazOsItensEOsTotais() throws Exception {
-        when(service.retornarProdutos(anyInt(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+        when(service.retornarProdutos(anyInt(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
                 anyInt(), anyInt(), any()))
                 .thenReturn(new PaginaDTO<>(List.of(new Produto()), 1, 50, 8342, 167));
 
@@ -154,7 +162,7 @@ class ConsultaProdutosControllerTest {
 
     @Test
     void tamanhoRecusadoPeloServiceViraUnprocessableEntity() throws Exception {
-        when(service.retornarProdutos(anyInt(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+        when(service.retornarProdutos(anyInt(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
                 anyInt(), anyInt(), any()))
                 .thenThrow(new BusinessException("tamanho deve ser 50, 100, 1000 ou 0 (todos), mas veio 25"));
 

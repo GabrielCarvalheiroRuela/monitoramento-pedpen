@@ -199,7 +199,7 @@ public class ProdutoService {
                                                Integer tentativaMaiorQue, Integer tentativaMenorQue,
                                                LocalDateTime dataInicial, LocalDateTime dataFinal,
                                                String plataforma, String produtoContem, String erroContem,
-                                               int pagina, int tamanho, String ordem) {
+                                               String libera, int pagina, int tamanho, String ordem) {
         // Recusar um status fora de 0/1 é melhor que devolver lista vazia, que se confunde com
         // "não há produtos nesse status".
         validarStatus(status);
@@ -239,7 +239,8 @@ public class ProdutoService {
         PaginaDTO<Produto> resultado = PaginaDTO.de(repository.buscar(status, codigoProduto, cliente, idIntegracao,
                 tentativaMaiorQue, tentativaMenorQue, paraData(dataInicial), paraData(dataFinal),
                 StringUtils.hasText(plataforma) ? plataforma : null,
-                paraPadraoLike(produtoContem), paraPadraoLike(erroContem), pageable));
+                paraPadraoLike(produtoContem), paraPadraoLike(erroContem),
+                normalizarLibera(libera), pageable));
         return todos
                 ? new PaginaDTO<>(resultado.itens(), 1, TAMANHO_TODOS, resultado.totalItens(), resultado.totalPaginas())
                 : resultado;
