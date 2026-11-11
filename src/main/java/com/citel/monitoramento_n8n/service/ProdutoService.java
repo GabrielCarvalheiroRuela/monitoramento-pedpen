@@ -37,12 +37,6 @@ public class ProdutoService {
     /** Todo registro nasce com uma tentativa: o POST que o criou. */
     private static final int PRIMEIRA_TENTATIVA = 1;
 
-    /** Valor de PRO_LIBERA que marca o produto como fora da liberação. */
-    private static final String LIBERA_REMOVIDO = "N";
-
-    /** Carimbo anexado à mensagem de erro quando o produto sai da liberação. */
-    private static final String MARCA_REMOCAO = "REMOVIDO DA LIBERACAO";
-
     /** Registros por página que o GET /produtos aceita, além de {@link #TAMANHO_TODOS}. */
     private static final Set<Integer> TAMANHOS_PERMITIDOS = Set.of(50, 100, 1000);
 
@@ -66,12 +60,7 @@ public class ProdutoService {
             novoProduto.setStatus(0);
             novoProduto.setTentativa(PRIMEIRA_TENTATIVA);
             novoProduto.setCodigoProduto(produtoDTO.codigoProduto());
-            String liberaNovo = normalizarLibera(produtoDTO.libera());
-            novoProduto.setLibera(liberaNovo);
-            // Já nasce fora da liberação: a mensagem que veio no payload é a "vigente" aqui.
-            novoProduto.setErro(removidoDaLiberacao(liberaNovo)
-                    ? marcarRemocao(produtoDTO.mensagemErro())
-                    : produtoDTO.mensagemErro());
+            novoProduto.setErro(produtoDTO.mensagemErro());
             novoProduto.setCliente(produtoDTO.cliente());
             novoProduto.setPlataforma(produtoDTO.plataforma());
             // Gravado como veio, sem conferir na CADINT: o n8n autentica com o login de serviço,
@@ -88,26 +77,10 @@ public class ProdutoService {
             Produto existente = produtoComErro.get();
             existente.incrementarTentativa();
 
-            // Liberação omitida no payload não mexe no que já está gravado: os POSTs que o n8n
-            // já manda hoje não carregam o campo e não podem zerar a liberação de ninguém.
-            String liberaPedido = normalizarLibera(produtoDTO.libera());
-            if (liberaPedido != null && !liberaPedido.equals(existente.getLibera())) {
-                if (removidoDaLiberacao(liberaPedido)) {
-                    log.info("Produto {} (cliente {}, rotina {}) removido da liberação",
-                            existente.getCodigoProduto(), existente.getCliente(), existente.getRotina());
-                }
-                existente.setLibera(liberaPedido);
+            // Mensagem vazia no payload mantém a gravada.
+            if (StringUtils.hasText(produtoDTO.mensagemErro())) {
+                existente.setErro(produtoDTO.mensagemErro());
             }
-
-            // Mensagem vazia no payload mantém a gravada. Produto fora da liberação (agora ou de
-            // antes) mantém o carimbo também na mensagem nova; marcarRemocao é idempotente, então
-            // reenviar o mesmo POST não empilha a marca.
-            String mensagemVigente = StringUtils.hasText(produtoDTO.mensagemErro())
-                    ? produtoDTO.mensagemErro()
-                    : existente.getMensagemErro();
-            existente.setErro(removidoDaLiberacao(existente.getLibera())
-                    ? marcarRemocao(mensagemVigente)
-                    : mensagemVigente);
 
             log.info("Produto {} (cliente {}, rotina {}) já registrado - tentativa {}",
                     existente.getCodigoProduto(), existente.getCliente(), existente.getRotina(),
@@ -330,35 +303,9 @@ public class ProdutoService {
         return cliente + "|" + codigoProduto + "|" + rotina;
     }
 
-    /**
-     * Normaliza PRO_LIBERA: vazio/branco vira nulo (= não informado) e o resto sobe para
-     * maiúscula, para que 'n' e 'N' gravem o mesmo valor.
-     */
-    private static String normalizarLibera(String libera) {
-        return StringUtils.hasText(libera) ? libera.trim().toUpperCase() : null;
-    }
-
     /** PRO_ID_INT como veio no payload, sem espaços; vazio ou omitido vira nulo. */
     private static String normalizarIdIntegracao(String idIntegracao) {
         return StringUtils.hasText(idIntegracao) ? idIntegracao.trim() : null;
-    }
-
-    private static boolean removidoDaLiberacao(String libera) {
-        return LIBERA_REMOVIDO.equals(libera);
-    }
-
-    /**
-     * Anexa {@value #MARCA_REMOCAO} à mensagem vigente. Idempotente: se a marca já está lá,
-     * devolve a mensagem intacta, então reenviar o mesmo POST não empilha carimbos.
-     */
-    private static String marcarRemocao(String mensagemVigente) {
-        if (!StringUtils.hasText(mensagemVigente)) {
-            return MARCA_REMOCAO;
-        }
-        if (mensagemVigente.contains(MARCA_REMOCAO)) {
-            return mensagemVigente;
-        }
-        return mensagemVigente + " - " + MARCA_REMOCAO;
     }
 
 
