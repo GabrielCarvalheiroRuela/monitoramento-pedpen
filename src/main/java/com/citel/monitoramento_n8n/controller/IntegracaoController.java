@@ -1,5 +1,6 @@
 package com.citel.monitoramento_n8n.controller;
 
+import com.citel.monitoramento_n8n.DTO.AlteracaoSituacaoDTO;
 import com.citel.monitoramento_n8n.DTO.AtualizacaoTokensDTO;
 import com.citel.monitoramento_n8n.DTO.DadosCriacaoIntegracao;
 import com.citel.monitoramento_n8n.DTO.EdicaoIntegracaoDTO;
@@ -7,6 +8,7 @@ import com.citel.monitoramento_n8n.DTO.IntegracaoContextoDTO;
 import com.citel.monitoramento_n8n.DTO.IntegracaoCriadaDTO;
 import com.citel.monitoramento_n8n.DTO.IntegracaoEdicaoDTO;
 import com.citel.monitoramento_n8n.DTO.IntegracaoResumoDTO;
+import com.citel.monitoramento_n8n.model.SituacaoIntegracao;
 import com.citel.monitoramento_n8n.model.Usuario;
 import com.citel.monitoramento_n8n.service.IntegracaoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -103,7 +105,7 @@ public class IntegracaoController {
     @GetMapping
     public ResponseEntity<List<?>> listarIntegracoes(
             @RequestParam(required = false) String plataforma,
-            @Parameter(description = "'S' ou 'N'") @RequestParam(required = false) String ativo,
+            @Parameter(description = "Situação: 'S' (ativo), 'N' (inativo) ou 'D' (em desenvolvimento)") @RequestParam(required = false) String ativo,
             @Parameter(description = "Inclui a chave privada e os tokens na resposta") @RequestParam(required = false, defaultValue = "false") boolean incluirCredenciais,
             @Parameter(description = "Slug da integração (busca exata)") @RequestParam(required = false) String slug) {
 
@@ -157,6 +159,33 @@ public class IntegracaoController {
             @RequestBody @Valid EdicaoIntegracaoDTO dados,
             @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(service.editar(codigoIntegracao, codigoCliente, dados, usuario));
+    }
+
+    @Operation(summary = "Ativa, inativa ou coloca uma integração em desenvolvimento (qualquer usuário interno)",
+            description = """
+                    Grava o CADINT.INT_ATIVO_: S (ATIVO), N (INATIVO) ou D (EM DESENVOLVIMENTO). Perfil USR \
+                    só alterna entre S e N: pedir D, ou mexer numa integração que já está em D, dá 403. DEV e \
+                    ADM definem as três. Só a integração ATIVA responde ao n8n. A mudança vira uma linha no \
+                    LOGINT com os rótulos (ATIVO, INATIVO, EM DESENVOLVIMENTO), não as siglas; pedir a situação \
+                    em que ela já está não grava nada. O lojista (token do n8n) recebe 403.""")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Integração com a situação atual",
+                    content = {@Content(mediaType = "application/json",
+                            schema = @Schema(implementation = IntegracaoResumoDTO.class))}),
+            @ApiResponse(responseCode = "400", description = "situacao ausente ou diferente de S, N e D"),
+            @ApiResponse(responseCode = "403", description = "Não é usuário interno, ou o perfil USR pediu D / tentou alterar uma integração em D"),
+            @ApiResponse(responseCode = "404", description = "Par código de integração + lojista inexistente"),
+            @ApiResponse(responseCode = "500", description = "Erro interno no servidor")
+    })
+    @PatchMapping("/{codigoIntegracao}/{codigoCliente}/situacao")
+    public ResponseEntity<IntegracaoResumoDTO> alterarSituacao(
+            @PathVariable String codigoIntegracao,
+            @Parameter(description = "CLI_CODCLI do lojista — o código de autorização se repete entre lojistas")
+            @PathVariable Long codigoCliente,
+            @RequestBody @Valid AlteracaoSituacaoDTO dados,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(service.alterarSituacao(codigoIntegracao, codigoCliente,
+                SituacaoIntegracao.deCodigo(dados.situacao()), usuario));
     }
 
     @Operation(summary = "Atualiza os tokens de uma integração (ADMIN_Tray_Token_*)",

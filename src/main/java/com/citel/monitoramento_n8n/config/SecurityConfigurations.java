@@ -63,6 +63,11 @@ public class SecurityConfigurations {
                     req.requestMatchers(HttpMethod.GET, "/integracoes/*/*").hasRole("ADMIN");
                     req.requestMatchers(HttpMethod.PATCH, "/integracoes/*/*").hasRole("ADMIN");
 
+                    // Situação da integração (ativo, inativo, em desenvolvimento): qualquer usuário interno chega aqui,
+                    // e o IntegracaoService decide o que o perfil pode fazer (o USR não mexe em "em desenvolvimento").
+                    // Sem a exceção do LOJISTA: o service recebe @AuthenticationPrincipal Usuario, nulo no token do n8n.
+                    req.requestMatchers(HttpMethod.PATCH, "/integracoes/*/*/situacao").hasRole("INTERNO");
+
                     // Matriz de funcionalidades (Req. 474225). O USR não vê a matriz. O DEV (e o ADM, que tem ROLE_DEV)
                     // consulta e marca a situação de uma funcionalidade numa plataforma (PUT .../plataformas/{plataforma}).
                     // Criar, editar e excluir a funcionalidade em si (todo o resto) é só do ADM, sem a exceção do LOJISTA.

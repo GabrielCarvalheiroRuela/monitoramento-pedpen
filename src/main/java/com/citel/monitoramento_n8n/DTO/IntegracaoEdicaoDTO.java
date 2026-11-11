@@ -17,6 +17,8 @@ public record IntegracaoEdicaoDTO(
         String plataforma,
         String slug,
         boolean ativo,
+        @Schema(description = "Código da situação: S (ativo), N (inativo) ou D (em desenvolvimento).")
+        String situacao,
         String urlWebservice,
         String urlApi,
         @Schema(description = "Chave RSA em PEM, com as quebras de linha preservadas.")
@@ -31,6 +33,7 @@ public record IntegracaoEdicaoDTO(
                 integracao.getPlataforma(),
                 integracao.getSlug(),
                 integracao.isAtivo(),
+                integracao.situacao().codigo(),
                 integracao.getUrlWebservice(),
                 integracao.getUrlApi(),
                 integracao.getChavePrivada()

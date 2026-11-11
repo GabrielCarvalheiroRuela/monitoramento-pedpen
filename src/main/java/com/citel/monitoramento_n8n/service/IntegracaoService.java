@@ -9,12 +9,14 @@ import com.citel.monitoramento_n8n.DTO.IntegracaoEdicaoDTO;
 import com.citel.monitoramento_n8n.DTO.IntegracaoResumoDTO;
 import com.citel.monitoramento_n8n.exception.BusinessException;
 import com.citel.monitoramento_n8n.exception.ConflictException;
+import com.citel.monitoramento_n8n.exception.ForbiddenException;
 import com.citel.monitoramento_n8n.exception.NotFoundException;
 import com.citel.monitoramento_n8n.exception.UnauthorizedException;
 import com.citel.monitoramento_n8n.model.Cliente;
 import com.citel.monitoramento_n8n.model.Integracao;
 import com.citel.monitoramento_n8n.model.IntegracaoId;
 import com.citel.monitoramento_n8n.model.LogIntegracao;
+import com.citel.monitoramento_n8n.model.SituacaoIntegracao;
 import com.citel.monitoramento_n8n.model.Usuario;
 import com.citel.monitoramento_n8n.repository.ClienteRepository;
 import com.citel.monitoramento_n8n.repository.IntegracaoRepository;
@@ -47,12 +49,12 @@ public class IntegracaoService {
     private static final String PREFIXO_WEBHOOK_TOKEN = "ct_";
     private static final int BYTES_WEBHOOK_TOKEN = 32;
 
-    private static final String ATIVO = "S";
-
     /** Colunas do CADINT que a edição pode mexer, na ordem em que o log é gravado. */
     static final String CAMPO_URL_WEBSERVICE = "INT_URLWBS";
     static final String CAMPO_URL_API = "INT_URLAPI";
     static final String CAMPO_CHAVE_PRIVADA = "INT_PRVKEY";
+    /** A situação tem rota própria (PATCH .../situacao), mas também deixa rastro no LOGINT. */
+    static final String CAMPO_SITUACAO = "INT_ATIVO_";
 
     private final IntegracaoRepository repository;
     private final ClienteRepository clienteRepository;
@@ -93,7 +95,7 @@ public class IntegracaoService {
         integracao.setPlataforma(plataforma);
         integracao.setSlug(dados.slug());
         integracao.setWebhookToken(gerarWebhookToken());
-        integracao.setAtivo(ATIVO);
+        integracao.setAtivo(SituacaoIntegracao.ATIVO.codigo());
         integracao.setUrlApi(dados.urlApi());
         integracao.setUrlWebservice(dados.urlWebservice());
         // Sem trim e sem normalização: reformatar o PEM quebra a assinatura JWT RS256.
@@ -243,6 +245,46 @@ public class IntegracaoService {
                 alteracoes.stream().map(LogIntegracao::getCampoAlterado).toList(), nomeDe(usuario));
 
         return IntegracaoEdicaoDTO.de(salva);
+    }
+
+    /**
+     * Ativa, inativa ou coloca em desenvolvimento. O USR só alterna entre ATIVO e INATIVO: pedir EM_DESENVOLVIMENTO, ou
+     * mexer numa integração que já está nela, é do DEV e do ADM (o USR leva 403).
+     *
+     * O LOGINT guarda os rótulos (ATIVO, INATIVO, EM DESENVOLVIMENTO), não as siglas. Pedir a situação em que a
+     * integração já está não grava nada.
+     */
+    @Transactional
+    public IntegracaoResumoDTO alterarSituacao(String codigoIntegracao, Long codigoCliente, SituacaoIntegracao nova,
+                                               Usuario usuario) {
+        Integracao integracao = buscarOuFalhar(codigoIntegracao, codigoCliente);
+        SituacaoIntegracao anterior = integracao.situacao();
+
+        boolean envolveDesenvolvimento = nova == SituacaoIntegracao.EM_DESENVOLVIMENTO
+                || anterior == SituacaoIntegracao.EM_DESENVOLVIMENTO;
+        if (envolveDesenvolvimento && !usuario.isDevOuAdmin()) {
+            log.warn("Perfil sem permissão sobre integração em desenvolvimento - código: {}, lojista: {}, de: {}, para: {}, por: {}",
+                    codigoIntegracao, codigoCliente, anterior.rotulo(), nova.rotulo(), nomeDe(usuario));
+            throw new ForbiddenException(nova == SituacaoIntegracao.EM_DESENVOLVIMENTO
+                    ? "Só os perfis DEV e ADM podem colocar uma integração em desenvolvimento."
+                    : "Só os perfis DEV e ADM podem alterar uma integração em desenvolvimento.");
+        }
+
+        if (anterior == nova) {
+            log.info("Situação sem alteração - código: {}, lojista: {}, situação: {}",
+                    codigoIntegracao, codigoCliente, nova.rotulo());
+            return IntegracaoResumoDTO.de(integracao);
+        }
+
+        LogIntegracao alteracao = registrar(integracao, usuario, CAMPO_SITUACAO, anterior.rotulo(), nova.rotulo());
+        integracao.setAtivo(nova.codigo());
+        Integracao salva = repository.save(integracao);
+        logRepository.save(alteracao);
+
+        log.info("Situação alterada - código: {}, lojista: {}, de: {}, para: {}, por: {}",
+                codigoIntegracao, codigoCliente, anterior.rotulo(), nova.rotulo(), nomeDe(usuario));
+
+        return IntegracaoResumoDTO.de(salva);
     }
 
     private LogIntegracao registrar(Integracao integracao, Usuario usuario, String campo, String anterior, String atual) {

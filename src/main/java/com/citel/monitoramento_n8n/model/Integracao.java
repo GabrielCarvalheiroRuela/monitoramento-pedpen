@@ -62,7 +62,10 @@ public class Integracao {
     @Column(name = "INT_WBHTOK", length = 80, nullable = false)
     private String webhookToken;
 
-    /** char(1) 'S'/'N' — exposto como boolean nos DTOs, convertido na borda. */
+    /**
+     * char(1): 'S' ativo, 'N' inativo, 'D' em desenvolvimento (ver SituacaoIntegracao). Só 'S' é uma integração
+     * ativa — os DTOs de contexto expõem isso como boolean, e os de tela expõem também o código.
+     */
     @Column(name = "INT_ATIVO_", length = 1, nullable = false)
     private String ativo;
 
@@ -104,6 +107,12 @@ public class Integracao {
     private LocalDateTime dataAlteracao;
 
     public boolean isAtivo() {
-        return "S".equalsIgnoreCase(this.ativo);
+        return situacao() == SituacaoIntegracao.ATIVO;
+    }
+
+    /** Um valor desconhecido no banco conta como inativo: na dúvida a integração não roda. */
+    public SituacaoIntegracao situacao() {
+        SituacaoIntegracao situacao = SituacaoIntegracao.deCodigo(this.ativo);
+        return situacao == null ? SituacaoIntegracao.INATIVO : situacao;
     }
 }
