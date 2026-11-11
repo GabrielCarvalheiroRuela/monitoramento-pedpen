@@ -118,11 +118,6 @@ public class ProdutoController {
                     junto com o total de registros que atendem aos filtros. Os filtros são
                     combinados com E.
 
-                    `libera` filtra PRO_LIBERA pelo valor exato, sem distinguir maiúsculas
-                    (`?libera=N` traz só os removidos da liberação). Omitido, traz tudo o que
-                    não é `N`, inclusive os sem liberação informada, e os totais seguem a mesma
-                    regra.
-
                     O `status` aceita 0 ou 1. Omitido, vale 0: traz os que ainda não foram
                     resolvidos, como antes de o parâmetro existir. `?status=1` traz os que estão com
                     PRO_STATUS 1. Qualquer outro valor é recusado com 422.
@@ -179,8 +174,6 @@ public class ProdutoController {
             @RequestParam(required = false) String produtoContem,
             @Parameter(description = "Pesquisa na mensagem de erro: traz as que CONTÊM o texto, sem distinguir maiúsculas")
             @RequestParam(required = false) String erroContem,
-            @Parameter(description = "PRO_LIBERA exato (ex.: N). Omitido, traz tudo o que não é N")
-            @RequestParam(required = false) String libera,
             @Parameter(description = "Página a retornar, a partir de 1")
             @RequestParam(defaultValue = "1") int pagina,
             @Parameter(description = "Registros por página: 50, 100 ou 1000; 0 traz todos numa só página",
@@ -192,7 +185,7 @@ public class ProdutoController {
     ) {
         return ResponseEntity.ok(service.retornarProdutos(
                 status, codigoProduto, cliente, idIntegracao, tentativaMaiorQue, tentativaMenorQue,
-                dataInicial, dataFinal, plataforma, produtoContem, erroContem, libera,
+                dataInicial, dataFinal, plataforma, produtoContem, erroContem,
                 pagina, tamanho, ordem));
     }
 
