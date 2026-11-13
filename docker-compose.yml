@@ -1,6 +1,8 @@
 services:
   monitoramento-api:
-    build: .
+    build:
+      context: .
+      no_cache: true
     container_name: monitoramento-integracoes
     restart: unless-stopped
     environment:
